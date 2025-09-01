@@ -1,0 +1,935 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>出勤退勤打刻アプリ</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .morning-greeting {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #ffeaa7 0%, #fab1a0 50%, #fd79a8 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            animation: fadeIn 0.8s ease-in;
+        }
+
+        .morning-greeting.fade-out {
+            animation: fadeOut 0.8s ease-out forwards;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        @keyframes fadeOut {
+            from { opacity: 1; }
+            to { opacity: 0; }
+        }
+
+        .greeting-text {
+            font-size: 28px;
+            font-weight: bold;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .greeting-subtext {
+            font-size: 16px;
+            color: white;
+            opacity: 0.9;
+            text-align: center;
+        }
+
+        .close-greeting {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.3);
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            backdrop-filter: blur(10px);
+        }
+
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .header h1 {
+            color: #333;
+            font-size: 24px;
+            margin-bottom: 10px;
+        }
+
+        .date {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .punch-button {
+            width: 100%;
+            height: 80px;
+            border: none;
+            border-radius: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-bottom: 20px;
+            color: white;
+        }
+
+        .punch-in {
+            background: linear-gradient(45deg, #4CAF50, #45a049);
+        }
+
+        .punch-out {
+            background: linear-gradient(45deg, #f44336, #d32f2f);
+        }
+
+        .punch-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        .current-time {
+            text-align: center;
+            font-size: 48px;
+            font-weight: bold;
+            color: #333;
+            margin: 20px 0;
+            font-family: 'Courier New', monospace;
+        }
+
+        .work-time {
+            background: #f5f5f5;
+            padding: 20px;
+            border-radius: 10px;
+            margin: 20px 0;
+        }
+
+        .work-time h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .total-time {
+            font-size: 24px;
+            font-weight: bold;
+            color: #4CAF50;
+        }
+
+        .punch-history {
+            margin: 20px 0;
+        }
+
+        .punch-record {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+
+        .punch-record:last-child {
+            border-bottom: none;
+        }
+
+        .punch-type {
+            font-weight: bold;
+        }
+
+        .punch-in-text {
+            color: #4CAF50;
+        }
+
+        .punch-out-text {
+            color: #f44336;
+        }
+
+        .irregular-work {
+            background: linear-gradient(45deg, #ff9800, #f57c00);
+            border: 2px solid #ff6f00;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0.7); }
+            70% { box-shadow: 0 0 0 10px rgba(255, 152, 0, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(255, 152, 0, 0); }
+        }
+
+        .irregular-indicator {
+            background: #ff9800;
+            color: white;
+            padding: 4px 8px;
+            border-radius: 12px;
+            font-size: 12px;
+            margin-left: 8px;
+            display: inline-block;
+        }
+
+        .weekend-indicator {
+            background: #9c27b0;
+        }
+
+        .holiday-indicator {
+            background: #e91e63;
+        }
+
+        .night-indicator {
+            background: #3f51b5;
+        }
+
+        .work-time.irregular {
+            background: linear-gradient(135deg, #fff3e0, #ffe0b2);
+            border: 2px solid #ff9800;
+        }
+
+        .irregular-notice {
+            background: #fff3e0;
+            border: 1px solid #ff9800;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 15px 0;
+            color: #e65100;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .break-info {
+            background: #e3f2fd;
+            border: 1px solid #2196F3;
+            border-radius: 8px;
+            padding: 12px;
+            margin: 10px 0;
+            font-size: 14px;
+            color: #1565c0;
+        }
+
+        .break-warning {
+            background: #fff3e0;
+            border: 1px solid #ff9800;
+            color: #e65100;
+        }
+
+        .break-error {
+            background: #ffebee;
+            border: 1px solid #f44336;
+            color: #c62828;
+        }
+
+        .export-button {
+            width: 100%;
+            padding: 15px;
+            background: linear-gradient(45deg, #2196F3, #1976D2);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            margin-top: 20px;
+        }
+
+        .export-button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(0,0,0,0.2);
+        }
+
+        @media (max-width: 480px) {
+            .container {
+                margin: 10px;
+                padding: 20px;
+            }
+            
+            .current-time {
+                font-size: 36px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div id="morningGreeting" class="morning-greeting" style="display: none;">
+        <button class="close-greeting" onclick="closeMorningGreeting()">×</button>
+        <div class="greeting-text" id="greetingText">おはようございます！</div>
+        <div class="greeting-subtext" id="greetingSubtext">今日も一日頑張りましょう！</div>
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>出勤退勤打刻</h1>
+            <div class="date" id="currentDate"></div>
+        </div>
+
+        <div class="current-time" id="currentTime"></div>
+
+        <button class="punch-button punch-in" id="punchButton" onclick="togglePunch()">
+            出勤
+        </button>
+
+        <div class="work-time" id="workTimeContainer">
+            <h3>本日の勤務時間</h3>
+            <div class="total-time" id="totalTime">0時間 0分</div>
+            <div id="breakInfo"></div>
+            <div id="irregularNotice"></div>
+        </div>
+
+        <div class="punch-history">
+            <h3>本日の打刻記録</h3>
+            <div id="punchHistory"></div>
+        </div>
+
+        <button class="export-button" onclick="exportCSV()">
+            今月のデータをCSV出力
+        </button>
+    </div>
+
+    <script>
+        let punchData = JSON.parse(localStorage.getItem('punchData')) || {};
+        let currentStatus = 'out'; // 'out' or 'in'
+
+        // 日本の祝日（2024-2025年）
+        const holidays = {
+            '2024-01-01': '元日',
+            '2024-01-08': '成人の日',
+            '2024-02-11': '建国記念の日',
+            '2024-02-12': '建国記念の日 振替休日',
+            '2024-02-23': '天皇誕生日',
+            '2024-03-20': '春分の日',
+            '2024-04-29': '昭和の日',
+            '2024-05-03': '憲法記念日',
+            '2024-05-04': 'みどりの日',
+            '2024-05-05': 'こどもの日',
+            '2024-05-06': 'こどもの日 振替休日',
+            '2024-07-15': '海の日',
+            '2024-08-11': '山の日',
+            '2024-08-12': '山の日 振替休日',
+            '2024-09-16': '敬老の日',
+            '2024-09-22': '秋分の日',
+            '2024-09-23': '秋分の日 振替休日',
+            '2024-10-14': 'スポーツの日',
+            '2024-11-03': '文化の日',
+            '2024-11-04': '文化の日 振替休日',
+            '2024-11-23': '勤労感謝の日',
+            '2025-01-01': '元日',
+            '2025-01-13': '成人の日',
+            '2025-02-11': '建国記念の日',
+            '2025-02-23': '天皇誕生日',
+            '2025-02-24': '天皇誕生日 振替休日',
+            '2025-03-20': '春分の日',
+            '2025-04-29': '昭和の日',
+            '2025-05-03': '憲法記念日',
+            '2025-05-04': 'みどりの日',
+            '2025-05-05': 'こどもの日',
+            '2025-05-06': 'こどもの日 振替休日',
+            '2025-07-21': '海の日',
+            '2025-08-11': '山の日',
+            '2025-09-15': '敬老の日',
+            '2025-09-23': '秋分の日',
+            '2025-10-13': 'スポーツの日',
+            '2025-11-03': '文化の日',
+            '2025-11-23': '勤労感謝の日',
+            '2025-11-24': '勤労感謝の日 振替休日'
+        };
+
+        function showMorningGreeting() {
+            const now = new Date();
+            const hour = now.getHours();
+            const today = getToday();
+            const lastGreeting = localStorage.getItem('lastGreetingDate');
+            
+            // 朝の時間帯（5時〜11時）で、今日まだ挨拶していない場合
+            if (hour >= 5 && hour <= 11 && lastGreeting !== today) {
+                const greetingDiv = document.getElementById('morningGreeting');
+                const greetingText = document.getElementById('greetingText');
+                const greetingSubtext = document.getElementById('greetingSubtext');
+                
+                // 時間帯に応じたメッセージ
+                let message = 'おはようございます！';
+                let subtext = '今日も一日頑張りましょう！';
+                
+                if (hour >= 5 && hour < 7) {
+                    message = 'おはようございます！';
+                    subtext = '早起きですね！素晴らしい一日の始まりです✨';
+                } else if (hour >= 7 && hour < 9) {
+                    message = 'おはようございます！';
+                    subtext = '今日も元気に頑張りましょう！';
+                } else if (hour >= 9 && hour <= 11) {
+                    message = 'おはようございます！';
+                    subtext = '良い一日をお過ごしください！';
+                }
+                
+                // 週末・祝日の場合
+                const irregularTypes = getIrregularTypes(now, hour);
+                if (irregularTypes.includes('weekend')) {
+                    subtext = '週末出勤お疲れ様です！';
+                }
+                if (irregularTypes.includes('holiday')) {
+                    subtext = '祝日出勤お疲れ様です！';
+                }
+                
+                greetingText.textContent = message;
+                greetingSubtext.textContent = subtext;
+                greetingDiv.style.display = 'flex';
+                
+                // 今日の挨拶済みフラグを保存
+                localStorage.setItem('lastGreetingDate', today);
+                
+                // 3秒後に自動で閉じる
+                setTimeout(() => {
+                    closeMorningGreeting();
+                }, 3000);
+            }
+        }
+
+        function closeMorningGreeting() {
+            const greetingDiv = document.getElementById('morningGreeting');
+            greetingDiv.classList.add('fade-out');
+            setTimeout(() => {
+                greetingDiv.style.display = 'none';
+                greetingDiv.classList.remove('fade-out');
+            }, 800);
+        }
+
+        function isWeekend(date) {
+            const day = date.getDay();
+            return day === 0 || day === 6; // 日曜日(0) または 土曜日(6)
+        }
+
+        function isHoliday(dateStr) {
+            return holidays.hasOwnProperty(dateStr);
+        }
+
+        function isNightTime(hour) {
+            return hour >= 22 || hour < 5; // 22時〜翌5時
+        }
+
+        function getIrregularTypes(date, hour) {
+            const dateStr = date.toISOString().split('T')[0];
+            const types = [];
+            
+            if (isWeekend(date)) {
+                types.push('weekend');
+            }
+            if (isHoliday(dateStr)) {
+                types.push('holiday');
+            }
+            if (isNightTime(hour)) {
+                types.push('night');
+            }
+            
+            return types;
+        }
+
+        function getIrregularLabel(types) {
+            const labels = {
+                'weekend': '休日',
+                'holiday': '祝日',
+                'night': '深夜'
+            };
+            return types.map(type => labels[type]).join('・');
+        }
+
+        function timeToMinutes(timeStr) {
+            const [hours, minutes] = timeStr.split(':').map(Number);
+            return hours * 60 + minutes;
+        }
+
+        function minutesToTime(minutes) {
+            const hours = Math.floor(minutes / 60);
+            const mins = minutes % 60;
+            return `${hours.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+        }
+
+        function calculateBreakTime(workSessions) {
+            // 勤務セッション間の休憩時間を計算
+            let totalBreakMinutes = 0;
+            let hasLunchBreak = false;
+            
+            for (let i = 0; i < workSessions.length - 1; i++) {
+                const currentEnd = workSessions[i].endTime;
+                const nextStart = workSessions[i + 1].startTime;
+                const breakMinutes = nextStart - currentEnd;
+                
+                // 12:00前後の休憩（11:30-13:30の間に始まる休憩）をランチ休憩とみなす
+                const breakStartTime = minutesToTime(currentEnd);
+                const breakEndTime = minutesToTime(nextStart);
+                
+                if ((currentEnd >= 690 && currentEnd <= 810) || // 11:30-13:30に終了
+                    (nextStart >= 720 && nextStart <= 840)) {    // 12:00-14:00に開始
+                    if (breakMinutes >= 30) { // 30分以上の休憩
+                        hasLunchBreak = true;
+                    }
+                }
+                
+                totalBreakMinutes += breakMinutes;
+            }
+            
+            return { totalBreakMinutes, hasLunchBreak };
+        }
+
+        function calculateRequiredBreakAndWorkTime(todayData) {
+            // 勤務セッションを作成
+            let workSessions = [];
+            let currentSession = null;
+
+            for (let punch of todayData) {
+                if (punch.type === 'in') {
+                    currentSession = {
+                        startTime: timeToMinutes(punch.time),
+                        startTimestamp: punch.timestamp
+                    };
+                } else if (punch.type === 'out' && currentSession) {
+                    currentSession.endTime = timeToMinutes(punch.time);
+                    currentSession.endTimestamp = punch.timestamp;
+                    workSessions.push(currentSession);
+                    currentSession = null;
+                }
+            }
+
+            // 現在出勤中の場合
+            if (currentSession) {
+                const now = new Date();
+                const currentMinutes = now.getHours() * 60 + now.getMinutes();
+                currentSession.endTime = currentMinutes;
+                currentSession.endTimestamp = now.getTime();
+                workSessions.push(currentSession);
+            }
+
+            // 実際の勤務時間を計算
+            let actualWorkMinutes = 0;
+            for (let session of workSessions) {
+                actualWorkMinutes += session.endTime - session.startTime;
+            }
+
+            // 休憩時間を計算
+            const { totalBreakMinutes, hasLunchBreak } = calculateBreakTime(workSessions);
+
+            // 法定休憩時間を決定
+            let requiredBreakMinutes = 0;
+            if (actualWorkMinutes >= 480) { // 8時間以上
+                requiredBreakMinutes = 60;
+            } else if (actualWorkMinutes >= 360) { // 6時間以上8時間未満
+                requiredBreakMinutes = 45;
+            }
+
+            // 自動休憩時間を計算
+            let autoBreakMinutes = 0;
+            let needsAutoBreak = false;
+
+            if (workSessions.length === 1) {
+                // 連続勤務の場合のみ自動休憩
+                const session = workSessions[0];
+                const workDuration = session.endTime - session.startTime;
+                
+                if (workDuration >= 480) { // 8時間以上
+                    autoBreakMinutes = 60;
+                    needsAutoBreak = true;
+                } else if (workDuration >= 360) { // 6時間以上8時間未満
+                    autoBreakMinutes = 45;
+                    needsAutoBreak = true;
+                }
+            }
+
+            // 最終的な勤務時間を計算
+            let finalWorkMinutes = actualWorkMinutes;
+            if (needsAutoBreak) {
+                finalWorkMinutes = actualWorkMinutes - autoBreakMinutes;
+            }
+
+            return {
+                actualWorkMinutes,
+                finalWorkMinutes,
+                totalBreakMinutes,
+                requiredBreakMinutes,
+                autoBreakMinutes,
+                hasLunchBreak,
+                needsAutoBreak,
+                workSessions
+            };
+        }
+
+        function updateCurrentTime() {
+            const now = new Date();
+            const timeString = now.toLocaleTimeString('ja-JP', {
+                hour: '2-digit',
+                minute: '2-digit',
+                second: '2-digit'
+            });
+            document.getElementById('currentTime').textContent = timeString;
+        }
+
+        function updateCurrentDate() {
+            const now = new Date();
+            const dateString = now.toLocaleDateString('ja-JP', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                weekday: 'long'
+            });
+            document.getElementById('currentDate').textContent = dateString;
+        }
+
+        function getToday() {
+            const now = new Date();
+            return now.toISOString().split('T')[0];
+        }
+
+        function initializeTodayData() {
+            const today = getToday();
+            if (!punchData[today]) {
+                punchData[today] = [];
+            }
+        }
+
+        function updateStatus() {
+            const today = getToday();
+            const todayData = punchData[today] || [];
+            
+            if (todayData.length === 0 || todayData[todayData.length - 1].type === 'out') {
+                currentStatus = 'out';
+            } else {
+                currentStatus = 'in';
+            }
+
+            const button = document.getElementById('punchButton');
+            const now = new Date();
+            const irregularTypes = getIrregularTypes(now, now.getHours());
+            
+            if (currentStatus === 'out') {
+                button.textContent = '出勤';
+                button.className = 'punch-button punch-in';
+            } else {
+                button.textContent = '退勤';
+                button.className = 'punch-button punch-out';
+            }
+
+            // イレギュラー勤務の場合はボタンのスタイルを変更
+            if (irregularTypes.length > 0) {
+                button.classList.add('irregular-work');
+            }
+        }
+
+        function togglePunch() {
+            const now = new Date();
+            const today = getToday();
+            const timeString = now.toLocaleTimeString('ja-JP', {
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+
+            initializeTodayData();
+
+            const punchType = currentStatus === 'out' ? 'in' : 'out';
+            const irregularTypes = getIrregularTypes(now, now.getHours());
+            
+            punchData[today].push({
+                type: punchType,
+                time: timeString,
+                timestamp: now.getTime(),
+                irregular: irregularTypes
+            });
+
+            localStorage.setItem('punchData', JSON.stringify(punchData));
+            
+            updateStatus();
+            updatePunchHistory();
+            updateTotalTime();
+        }
+
+        function updatePunchHistory() {
+            const today = getToday();
+            const todayData = punchData[today] || [];
+            const historyDiv = document.getElementById('punchHistory');
+            
+            if (todayData.length === 0) {
+                historyDiv.innerHTML = '<div style="color: #999; text-align: center;">打刻記録がありません</div>';
+                return;
+            }
+
+            historyDiv.innerHTML = todayData.map(punch => {
+                let irregularIndicators = '';
+                if (punch.irregular && punch.irregular.length > 0) {
+                    irregularIndicators = punch.irregular.map(type => {
+                        let className = 'irregular-indicator';
+                        if (type === 'weekend') className += ' weekend-indicator';
+                        else if (type === 'holiday') className += ' holiday-indicator';
+                        else if (type === 'night') className += ' night-indicator';
+                        
+                        const labels = {'weekend': '休日', 'holiday': '祝日', 'night': '深夜'};
+                        return `<span class="${className}">${labels[type]}</span>`;
+                    }).join('');
+                }
+                
+                return `
+                    <div class="punch-record">
+                        <span class="punch-type ${punch.type === 'in' ? 'punch-in-text' : 'punch-out-text'}">
+                            ${punch.type === 'in' ? '出勤' : '退勤'}
+                            ${irregularIndicators}
+                        </span>
+                        <span>${punch.time}</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateTotalTime() {
+            const today = getToday();
+            const todayData = punchData[today] || [];
+            
+            if (todayData.length === 0) {
+                document.getElementById('totalTime').textContent = '0時間 0分';
+                document.getElementById('breakInfo').innerHTML = '';
+                return;
+            }
+
+            const breakCalc = calculateRequiredBreakAndWorkTime(todayData);
+            let hasIrregularWork = false;
+
+            // イレギュラー勤務チェック
+            for (let punch of todayData) {
+                if (punch.irregular && punch.irregular.length > 0) {
+                    hasIrregularWork = true;
+                    break;
+                }
+            }
+
+            const hours = Math.floor(breakCalc.finalWorkMinutes / 60);
+            const minutes = Math.floor(breakCalc.finalWorkMinutes % 60);
+            
+            document.getElementById('totalTime').textContent = `${hours}時間 ${minutes}分`;
+
+            // 休憩情報を表示
+            const breakInfoDiv = document.getElementById('breakInfo');
+            let breakInfoHTML = '';
+
+            if (breakCalc.needsAutoBreak) {
+                // 連続勤務の場合の自動休憩
+                breakInfoHTML = `
+                    <div class="break-info">
+                        📅 連続勤務のため12:00から${breakCalc.autoBreakMinutes}分の自動休憩を適用
+                        <br>実勤務: ${Math.floor(breakCalc.actualWorkMinutes / 60)}時間${breakCalc.actualWorkMinutes % 60}分 
+                        → 休憩控除後: ${hours}時間${minutes}分
+                    </div>
+                `;
+            } else if (breakCalc.workSessions.length > 1) {
+                // 複数回出退勤の場合の休憩チェック
+                const breakStatus = breakCalc.totalBreakMinutes >= breakCalc.requiredBreakMinutes;
+                const breakHours = Math.floor(breakCalc.totalBreakMinutes / 60);
+                const breakMins = breakCalc.totalBreakMinutes % 60;
+                
+                if (breakCalc.requiredBreakMinutes > 0) {
+                    if (breakStatus) {
+                        breakInfoHTML = `
+                            <div class="break-info">
+                                ✅ 法定休憩時間確保済み
+                                <br>取得休憩: ${breakHours}時間${breakMins}分 / 必要: ${Math.floor(breakCalc.requiredBreakMinutes / 60)}時間${breakCalc.requiredBreakMinutes % 60}分
+                            </div>
+                        `;
+                    } else {
+                        breakInfoHTML = `
+                            <div class="break-info break-error">
+                                ⚠️ 法定休憩時間不足
+                                <br>取得休憩: ${breakHours}時間${breakMins}分 / 必要: ${Math.floor(breakCalc.requiredBreakMinutes / 60)}時間${breakCalc.requiredBreakMinutes % 60}分
+                                <br>あと${breakCalc.requiredBreakMinutes - breakCalc.totalBreakMinutes}分必要です
+                            </div>
+                        `;
+                    }
+                } else {
+                    breakInfoHTML = `
+                        <div class="break-info">
+                            ℹ️ 6時間未満勤務のため法定休憩不要
+                            <br>取得休憩: ${breakHours}時間${breakMins}分
+                        </div>
+                    `;
+                }
+            }
+
+            breakInfoDiv.innerHTML = breakInfoHTML;
+
+            // イレギュラー勤務の場合は表示を変更
+            const workTimeContainer = document.getElementById('workTimeContainer');
+            const irregularNotice = document.getElementById('irregularNotice');
+            
+            if (hasIrregularWork) {
+                workTimeContainer.classList.add('irregular');
+                let irregularTypes = new Set();
+                
+                todayData.forEach(punch => {
+                    if (punch.irregular) {
+                        punch.irregular.forEach(type => irregularTypes.add(type));
+                    }
+                });
+                
+                if (irregularTypes.size > 0) {
+                    irregularNotice.innerHTML = `
+                        <div class="irregular-notice">
+                            ⚠️ イレギュラー勤務: ${getIrregularLabel([...irregularTypes])}
+                        </div>
+                    `;
+                }
+            } else {
+                workTimeContainer.classList.remove('irregular');
+                irregularNotice.innerHTML = '';
+            }
+        }
+
+        function exportCSV() {
+            const now = new Date();
+            const year = now.getFullYear();
+            const month = now.getMonth();
+            
+            // 今月の1日から月末までの日付を生成
+            const startDate = new Date(year, month, 1);
+            const endDate = new Date(year, month + 1, 0);
+            
+            let csvContent = 'データ,出勤1,退勤1,出勤2,退勤2,出勤3,退勤3,実勤務（分）,休憩（分）,最終勤務（分）,休憩状況,休日,祝日,深夜,備考\n';
+            
+            for (let d = new Date(startDate); d <= endDate; d.setDate(d.getDate() + 1)) {
+                const dateStr = d.toISOString().split('T')[0];
+                const dayData = punchData[dateStr] || [];
+                
+                if (dayData.length === 0) continue;
+                
+                const formattedDate = d.toLocaleDateString('ja-JP');
+                let csvRow = `${formattedDate}`;
+                
+                let isWeekendWork = false;
+                let isHolidayWork = false;
+                let isNightWork = false;
+                let remarks = [];
+                
+                // 休憩時間計算
+                const breakCalc = calculateRequiredBreakAndWorkTime(dayData);
+                
+                // 最大3回の出退勤に対応（時刻のみ）
+                for (let pairIndex = 0; pairIndex < 3; pairIndex++) {
+                    const punchInIndex = pairIndex * 2;
+                    const punchOutIndex = punchInIndex + 1;
+                    
+                    const punchIn = dayData[punchInIndex];
+                    const punchOut = dayData[punchOutIndex];
+                    
+                    if (punchIn && punchIn.type === 'in') {
+                        const inTime = punchIn.time;
+                        const outTime = punchOut ? punchOut.time : '';
+                        
+                        csvRow += `,${inTime},${outTime}`;
+                        
+                        // イレギュラー勤務の判定
+                        if (punchIn.irregular) {
+                            if (punchIn.irregular.includes('weekend')) isWeekendWork = true;
+                            if (punchIn.irregular.includes('holiday')) isHolidayWork = true;
+                            if (punchIn.irregular.includes('night')) isNightWork = true;
+                        }
+                        
+                        if (punchOut && punchOut.irregular) {
+                            if (punchOut.irregular.includes('weekend')) isWeekendWork = true;
+                            if (punchOut.irregular.includes('holiday')) isHolidayWork = true;
+                            if (punchOut.irregular.includes('night')) isNightWork = true;
+                        }
+                    } else {
+                        // 空のセルを追加（出勤,退勤）
+                        csvRow += ',,';
+                    }
+                }
+                
+                // 休憩状況の判定
+                let breakStatus = '';
+                if (breakCalc.needsAutoBreak) {
+                    breakStatus = `自動${breakCalc.autoBreakMinutes}分`;
+                } else if (breakCalc.workSessions.length > 1) {
+                    if (breakCalc.requiredBreakMinutes > 0) {
+                        if (breakCalc.totalBreakMinutes >= breakCalc.requiredBreakMinutes) {
+                            breakStatus = '確保済み';
+                        } else {
+                            breakStatus = `不足${breakCalc.requiredBreakMinutes - breakCalc.totalBreakMinutes}分`;
+                        }
+                    } else {
+                        breakStatus = '不要';
+                    }
+                }
+                
+                // 備考作成（簡潔に）
+                if (isWeekendWork) remarks.push('休日');
+                if (isHolidayWork) remarks.push(holidays[dateStr] || '祝日');
+                if (isNightWork) remarks.push('深夜');
+                
+                // 勤務時間と休憩情報を追加
+                const appliedBreak = breakCalc.needsAutoBreak ? breakCalc.autoBreakMinutes : breakCalc.totalBreakMinutes;
+                csvRow += `,${breakCalc.actualWorkMinutes},${appliedBreak},${breakCalc.finalWorkMinutes},${breakStatus},${isWeekendWork ? '○' : ''},${isHolidayWork ? '○' : ''},${isNightWork ? '○' : ''},${remarks.join('・')}`;
+                
+                csvContent += csvRow + '\n';
+            }
+            
+            // CSVファイルをダウンロード
+            const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+            const link = document.createElement('a');
+            const url = URL.createObjectURL(blob);
+            link.setAttribute('href', url);
+            link.setAttribute('download', `勤務記録_${year}年${month + 1}月.csv`);
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // 初期化
+        function initialize() {
+            updateCurrentTime();
+            updateCurrentDate();
+            updateStatus();
+            updatePunchHistory();
+            updateTotalTime();
+            
+            // 朝の挨拶を表示
+            showMorningGreeting();
+            
+            // 1秒ごとに時刻を更新
+            setInterval(() => {
+                updateCurrentTime();
+                updateTotalTime(); // 出勤中の場合、リアルタイムで勤務時間を更新
+            }, 1000);
+        }
+
+        // ページ読み込み時に初期化
+        initialize();
+    </script>
+</body>
+</html>
